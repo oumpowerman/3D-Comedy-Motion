@@ -175,9 +175,6 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
     label: string;
     shortDesc: string;
   }[] = [
-    { key: 'thaiFlagRibbon', label: 'ริบบิ้นธงชาติไทย', shortDesc: 'พาดโค้งด้านหลัง' },
-    { key: 'clownMascot', label: 'ตัวตลกหัวเราะ', shortDesc: 'โผล่หลังเลข 5' },
-    { key: 'tinTray', label: 'ถาดสังกะสีตบมุก', shortDesc: 'เด้งประกาย ป๊าบ!' },
     { key: 'interviewMic', label: 'ไมค์สัมภาษณ์', shortDesc: 'ยื่นจากขอบซ้าย' },
     { key: 'recCamera', label: 'กล้องไฟ REC', shortDesc: 'ซูมจากขอบขวา' },
     { key: 'marigoldGarland', label: 'พวงมาลัยดาวเรือง', shortDesc: 'คล้องมุมซ้ายล่าง' },
@@ -250,7 +247,7 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
     icon: React.FC<{ className?: string }>;
   }[] = [
     { id: 'presets', label: `Preset (${presets.length})`, icon: Bookmark },
-    { id: 'props_polish', label: `พร็อพ (${activePropsCount}/7)`, icon: Sparkles },
+    { id: 'props_polish', label: `พร็อพ (${activePropsCount}/4)`, icon: Sparkles },
     { id: 'stage_sfx', label: 'ฉาก & เสียง', icon: Layers },
   ];
 
@@ -513,6 +510,11 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                               )}
 
                               <div className="mt-1.5 text-xs text-slate-300 truncate font-medium">
+                                {preset.config.channelEnabled && preset.config.channelText ? (
+                                  <span className="text-slate-400 mr-1">
+                                    [{preset.config.channelText}]
+                                  </span>
+                                ) : null}
                                 {preset.config.rankNumber} {preset.config.topText}{' '}
                                 <span className="text-amber-300 font-bold">
                                   “{preset.config.middleText}”
@@ -609,13 +611,13 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
               exit="exit"
               className="space-y-5"
             >
-              {/* 7 Thai Comedy Props in a clean 2-column staggered grid */}
+              {/* 4 Thai Comedy Props in a clean 2-column staggered grid */}
               <motion.section variants={cardItemVariants} className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-amber-400" />
                     <h3 className="text-xs font-bold text-slate-100">
-                      พร็อพตลกไทยบนป้าย ({activePropsCount}/7)
+                      พร็อพประกอบป้าย ({activePropsCount}/4)
                     </h3>
                   </div>
                   <button
@@ -626,9 +628,6 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                         ...prev,
                         props: {
                           ...prev.props,
-                          thaiFlagRibbon: !allOn,
-                          clownMascot: !allOn,
-                          tinTray: !allOn,
                           interviewMic: !allOn,
                           recCamera: !allOn,
                           marigoldGarland: !allOn,

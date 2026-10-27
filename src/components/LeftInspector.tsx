@@ -203,6 +203,8 @@ export const LeftInspector: React.FC<LeftInspectorProps> = ({ config, onChange }
       ...prev,
       customColors: {
         ...prev.customColors,
+        channelTextFill: randHex(baseHue, baseHue + 35, 96, 78),
+        channelTextStroke: randHex(baseHue + 150, baseHue + 200, 90, 44),
         rankFill: randHex(baseHue, baseHue + 30, 95, 60),
         rankSecondary: randHex(baseHue + 140, baseHue + 190, 92, 56),
         rankWaveAccent: randHex(baseHue + 210, baseHue + 260, 92, 55),
@@ -253,16 +255,80 @@ export const LeftInspector: React.FC<LeftInspectorProps> = ({ config, onChange }
   return (
     <aside className="relative w-full lg:w-[350px] xl:w-[380px] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-y-auto">
       <div className="p-5 space-y-6">
-        {/* Section 1: 3-Layer Stacked Text Controls */}
+        {/* Section 1: Stacked Text Controls */}
         <section className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
             <div className="flex items-center gap-2">
               <Type className="w-4 h-4 text-amber-400 shrink-0" />
               <h2 className="text-sm font-bold text-slate-100">
-                1. โครงสร้างข้อความ 3 ชั้น (Stacked Layout)
+                1. โครงสร้างข้อความโลโก้ (Stacked Layout)
               </h2>
             </div>
             <span className="text-xs text-slate-400">ปรับขนาด & สีอิสระ</span>
+          </div>
+
+          {/* Layer 0: Channel Title ("เรียงเรื่องลั่น" Overhead Stamp Drop) */}
+          <div className="space-y-3 bg-slate-950/60 p-3.5 rounded-xl border border-amber-500/35">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-amber-300 truncate">
+                  ชื่อช่องด้านบน (พุ่งตกทีละตัวแบบตัวปั๊ม)
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  วางเหนือคำว่า 5 อันดับ · ไล่จังหวะทีละตัวอักษร
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={config.channelEnabled}
+                  onChange={(e) => updateField('channelEnabled', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all relative peer-checked:bg-amber-400" />
+              </label>
+            </div>
+
+            {config.channelEnabled && (
+              <div className="space-y-2.5 pt-1">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">
+                    ข้อความชื่อช่อง (เช่น เรียงเรื่องลั่น)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={24}
+                    value={config.channelText}
+                    onChange={(e) => updateField('channelText', e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-900 border border-amber-500/50 rounded-lg text-sm font-bold text-amber-200 focus:outline-none focus:border-amber-400"
+                    placeholder="เรียงเรื่องลั่น"
+                  />
+                </div>
+
+                <FontSizeControl
+                  label="ขนาดชื่อช่องด้านบน"
+                  value={config.channelTextSize}
+                  min={32}
+                  max={96}
+                  step={2}
+                  defaultValue={54}
+                  onChange={(val) => updateField('channelTextSize', val)}
+                />
+
+                <div className="grid grid-cols-1 gap-1.5 pt-0.5">
+                  <ColorPickerField
+                    label='สีตัวอักษรชื่อช่อง ("เรียงเรื่องลั่น")'
+                    value={config.customColors.channelTextFill}
+                    onChange={(hex) => updateCustomColor('channelTextFill', hex)}
+                  />
+                  <ColorPickerField
+                    label="สีเส้นขอบชื่อช่อง"
+                    value={config.customColors.channelTextStroke}
+                    onChange={(hex) => updateCustomColor('channelTextStroke', hex)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Layer 1: Top ("5 อันดับ") */}
@@ -808,8 +874,18 @@ export const LeftInspector: React.FC<LeftInspectorProps> = ({ config, onChange }
             {activeColorPhase === 'phase1' && (
               <div className="space-y-1.5">
                 <div className="text-xs text-slate-400 mb-1">
-                  เฟส 1 (0.0 – 0.5s): เลขจัดอันดับ ลูกคลื่น Gradient คำนำ & ป้าย EP
+                  เฟส 1 (0.0 – 0.5s): ชื่อช่อง "เรียงเรื่องลั่น" เลขจัดอันดับ คำนำ & ป้าย EP
                 </div>
+                <ColorPickerField
+                  label='สีตัวอักษรชื่อช่อง ("เรียงเรื่องลั่น")'
+                  value={config.customColors.channelTextFill}
+                  onChange={(hex) => updateCustomColor('channelTextFill', hex)}
+                />
+                <ColorPickerField
+                  label="สีเส้นขอบชื่อช่อง"
+                  value={config.customColors.channelTextStroke}
+                  onChange={(hex) => updateCustomColor('channelTextStroke', hex)}
+                />
                 <ColorPickerField
                   label="สีหลักตัวเลข"
                   value={config.customColors.rankFill}

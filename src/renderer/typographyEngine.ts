@@ -138,6 +138,8 @@ export function drawStaggeredThaiText(
     dropFromY?: number;
     staggerScale?: number;
     shimmerSweepProgress?: number; // 0 -> 1 glyph-masked specular light sweep
+    stampScaleFrom?: number;       // e.g. 1.65 for overhead stamp slam-down effect
+    archHeight?: number;           // Positive value arches the middle upward & curves ends to hug the logo
   }
 ) {
   const graphemes = segmentThaiGraphemes(text);
@@ -154,6 +156,9 @@ export function drawStaggeredThaiText(
 
   const staggerStep = physics.staggerDelay * (options?.staggerScale ?? 1);
   const dropDist = options?.dropFromY ?? 55;
+  const stampScaleFrom = options?.stampScaleFrom;
+  const archHeight = options?.archHeight ?? 0;
+  const halfSpan = Math.max(70, totalWidth / 2);
   const shimmerP = options?.shimmerSweepProgress ?? -1;
   const hasShimmer = shimmerP > 0.001 && shimmerP < 0.999 && totalWidth > 0;
 
@@ -168,21 +173,32 @@ export function drawStaggeredThaiText(
     const charElapsed = phaseElapsed - idx * staggerStep;
     const spring = solveSpring(charElapsed, physics);
 
-    if (spring.value > 0.01) {
+    if (spring.value > 0.01 && charElapsed > 0) {
       const { scaleX, scaleY } = computeSquashStretch(
         spring.velocity,
         physics.enableSquashStretch,
-        0.032
+        stampScaleFrom ? 0.042 : 0.032
       );
       const charCenterX = cursorX + w / 2;
       const offsetY = (1 - spring.value) * dropDist;
       const tilt = clamp(spring.velocity * -0.018, -0.18, 0.18);
-      const scale = Math.max(0.01, spring.value);
+      const scale = stampScaleFrom
+        ? Math.max(0.2, stampScaleFrom - (stampScaleFrom - 1) * spring.value)
+        : Math.max(0.01, spring.value);
+
+      // Compute smooth parabolic arch vertical lift & tangent angle per grapheme cluster
+      const normX = clamp((charCenterX - centerX) / halfSpan, -1.15, 1.15);
+      const archOffsetY = archHeight !== 0 ? -archHeight * (1 - normX * normX) : 0;
+      const archAngle =
+        archHeight !== 0 ? normX * Math.atan2(archHeight * 1.65, halfSpan) : 0;
 
       ctx.save();
-      ctx.translate(charCenterX, centerY + offsetY);
+      if (stampScaleFrom) {
+        ctx.globalAlpha = clamp(spring.value * 2.4, 0, 1);
+      }
+      ctx.translate(charCenterX, centerY + archOffsetY + offsetY);
+      ctx.rotate(archAngle + tilt);
       ctx.scale(scale * scaleX, scale * scaleY);
-      ctx.rotate(tilt);
 
       drawPremiumExtrudedText(ctx, g, -w / 2, 0, {
         ...style,

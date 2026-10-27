@@ -56,9 +56,23 @@ export function normalizeLogoConfig(raw: Partial<LogoConfig> | null | undefined)
 
   const baseThemeColors = getThemeDefaultColors(activeThemeId);
 
+  const rawProps = (raw.props || {}) as Partial<LogoConfig['props']>;
+
   return {
     ...DEFAULT_LOGO_CONFIG,
     ...raw,
+    channelEnabled:
+      typeof raw.channelEnabled === 'boolean'
+        ? raw.channelEnabled
+        : DEFAULT_LOGO_CONFIG.channelEnabled,
+    channelText:
+      typeof raw.channelText === 'string'
+        ? raw.channelText
+        : DEFAULT_LOGO_CONFIG.channelText,
+    channelTextSize:
+      typeof raw.channelTextSize === 'number'
+        ? raw.channelTextSize
+        : DEFAULT_LOGO_CONFIG.channelTextSize,
     themeId: activeThemeId,
     numberTexture: normalizedMode,
     customColors: {
@@ -70,8 +84,26 @@ export function normalizeLogoConfig(raw: Partial<LogoConfig> | null | undefined)
       ...(raw.physics || {}),
     },
     props: {
-      ...DEFAULT_LOGO_CONFIG.props,
-      ...(raw.props || {}),
+      marigoldGarland:
+        typeof rawProps.marigoldGarland === 'boolean'
+          ? rawProps.marigoldGarland
+          : DEFAULT_LOGO_CONFIG.props.marigoldGarland,
+      hornSpeaker:
+        typeof rawProps.hornSpeaker === 'boolean'
+          ? rawProps.hornSpeaker
+          : DEFAULT_LOGO_CONFIG.props.hornSpeaker,
+      interviewMic:
+        typeof rawProps.interviewMic === 'boolean'
+          ? rawProps.interviewMic
+          : DEFAULT_LOGO_CONFIG.props.interviewMic,
+      micChannelTag:
+        typeof rawProps.micChannelTag === 'string'
+          ? rawProps.micChannelTag
+          : DEFAULT_LOGO_CONFIG.props.micChannelTag,
+      recCamera:
+        typeof rawProps.recCamera === 'boolean'
+          ? rawProps.recCamera
+          : DEFAULT_LOGO_CONFIG.props.recCamera,
     },
     sfx: {
       ...DEFAULT_LOGO_CONFIG.sfx,
@@ -84,6 +116,7 @@ export function normalizeLogoConfig(raw: Partial<LogoConfig> | null | undefined)
  * Sanitizes a LogoConfig into the exact schema required by firebase-blueprint.json & firestore.rules
  */
 function buildValidatedFirestorePayload(ownerId: string, config: LogoConfig) {
+  const safeChannelText = String(config.channelText || 'เรียงเรื่องลั่น').slice(0, 32);
   const safeRank = String(config.rankNumber || '5').slice(0, 10);
   const safeTop = String(config.topText || 'อันดับ').slice(0, 40);
   const safeMiddle = String(config.middleText || '').slice(0, 120);
@@ -122,6 +155,9 @@ function buildValidatedFirestorePayload(ownerId: string, config: LogoConfig) {
     aspectRatio: safeRatio,
     bgMode: safeBgMode,
     configPayload: {
+      channelEnabled: Boolean(config.channelEnabled),
+      channelText: safeChannelText,
+      channelTextSize: config.channelTextSize,
       rankNumberSize: config.rankNumberSize,
       topTextSize: config.topTextSize,
       middleTextSize: config.middleTextSize,

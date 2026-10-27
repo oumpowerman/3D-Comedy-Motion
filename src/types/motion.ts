@@ -54,7 +54,9 @@ export const MOTION_PHYSICS_PRESETS: Record<
 };
 
 export interface CustomPhaseColors {
-  // Phase 1: Top Layer ("5 อันดับ" + Rank Wave + EP Badge)
+  // Phase 1: Top Layer ("เรียงเรื่องลั่น" + "5 อันดับ" + Rank Wave + EP Badge)
+  channelTextFill: string;
+  channelTextStroke: string;
   rankFill: string;
   rankSecondary: string;
   rankWaveAccent: string;
@@ -89,14 +91,11 @@ export interface ColorTheme extends CustomPhaseColors {
 }
 
 export interface PropsConfig {
-  thaiFlagRibbon: boolean;
-  tinTray: boolean;
   marigoldGarland: boolean;
   hornSpeaker: boolean;
   interviewMic: boolean;
   micChannelTag: string;
   recCamera: boolean;
-  clownMascot: boolean;
 }
 
 export interface SfxConfig {
@@ -110,6 +109,11 @@ export interface SfxConfig {
 }
 
 export interface LogoConfig {
+  // Layer 0: Channel Title ("เรียงเรื่องลั่น")
+  channelEnabled: boolean;
+  channelText: string;
+  channelTextSize: number;     // Default 54 (32 - 96)
+
   // Layer 1: Top ("5 อันดับ")
   rankNumber: string;
   rankNumberSize: number;      // Default 182 (110 - 260)
@@ -169,12 +173,12 @@ export const TIMELINE_PHASES: TimelinePhase[] = [
   {
     id: 'phase_1',
     index: 1,
-    title: 'เปิดตัว 5 อันดับ + ธงไทย',
+    title: 'เปิดตัว "เรียงเรื่องลั่น" + 5 อันดับ',
     timeRange: '0.0 – 0.5s',
     startTime: 0.0,
     endTime: 0.5,
-    layerDesc: 'พื้นหลังธงชาติ + คำว่า "5 อันดับ" + ป้าย EP',
-    motionDesc: 'ริบบิ้นธงชาติสะบัดกางออก พร้อมคำว่า "5 อันดับ" เด้งเรียงตัวแบบ Staggered Spring และป้าย EP เด้ง Message Pop',
+    layerDesc: 'ชื่อช่อง "เรียงเรื่องลั่น" + คำว่า "5 อันดับ" + ป้าย EP',
+    motionDesc: 'คำว่า "เรียงเรื่องลั่น" พุ่งตกลงมาจากด้านบนทีละตัวแบบตัวปั๊มกระแทกจังหวะ พร้อมคำว่า "5 อันดับ" และป้าย EP เด้งขึ้นรับ',
     sfxDesc: 'เสียง ฟึ่บ! ตามด้วยเสียงเด้ง ดึ๋ง! (Boing)',
     accentColor: '#FACC15',
   },
@@ -193,13 +197,13 @@ export const TIMELINE_PHASES: TimelinePhase[] = [
   {
     id: 'phase_3',
     index: 3,
-    title: 'ตบมุก "สุดฮา" + ถาดสังกะสี & ตัวตลก',
+    title: 'ตบมุกกระแทกหน้าจอ "สุดฮา"',
     timeRange: '1.2 – 1.8s',
     startTime: 1.2,
     endTime: 1.8,
-    layerDesc: 'คำว่า "สุดฮา" + ตัวตลก & ถาดสังกะสี',
-    motionDesc: 'คำว่า "สุดฮา" พุ่งกระแทกพร้อมคลื่น Shockwave & 2.5D Impact Zoom ตัวตลกและถาดสังกะสีเด้งทะลุขึ้นมาจากหลังป้าย',
-    sfxDesc: 'เสียงตีถาดสังกะสี (ป๊าบ!) + เสียงสปริงตลก',
+    layerDesc: 'คำว่า "สุดฮา" + คลื่นกระแทก Shockwave & ดาวการ์ตูน',
+    motionDesc: 'คำว่า "สุดฮา" พุ่งกระแทกพร้อมคลื่น Shockwave & 2.5D Impact Zoom ยืดหด Squash & Stretch เต็มแรง',
+    sfxDesc: 'เสียงตบมุก (ป๊าบ!) + เสียงสปริงตลก',
     accentColor: '#F43F5E',
   },
   {
@@ -210,7 +214,7 @@ export const TIMELINE_PHASES: TimelinePhase[] = [
     startTime: 1.8,
     endTime: 3.5,
     layerDesc: 'ทุกเลเยอร์ทำงานประสานกัน (Loop Hold + Light Sweep)',
-    motionDesc: 'ลำแสง Specular พาดผ่านตัวอักษร 3D กล้องเคลื่อนแบบ 2.5D Parallax ไฟ REC กะพริบ และคำว่า "สุดฮา" สั่นดุ๊กดิ๊ก',
+    motionDesc: 'ลำแสง Specular พาดผ่านตัวอักษร "เรียงเรื่องลั่น" และโลโก้ 3D กล้องเคลื่อนแบบ 2.5D Parallax ไฟ REC กะพริบ',
     sfxDesc: 'เสียงกลองตบมุก (ตึง โป๊ะ!)',
     accentColor: '#10B981',
   },
@@ -233,6 +237,8 @@ export const COLOR_THEMES: Record<ThemeId, ColorTheme> = {
     id: 'temple_fair',
     name: 'งานวัดไทย (Temple Fair)',
     subtitle: 'เหลืองทอง แดงชาด น้ำเงิน ขอบดำหนา',
+    channelTextFill: '#FEF08A',
+    channelTextStroke: '#DC2626',
     rankFill: '#FACC15',
     rankSecondary: '#EF4444',
     rankWaveAccent: '#F97316',
@@ -257,6 +263,8 @@ export const COLOR_THEMES: Record<ThemeId, ColorTheme> = {
     id: 'cafe_comedy',
     name: 'ตลกคาเฟ่ยุค 90 (Retro Cafe)',
     subtitle: 'ชมพูบานเย็น เหลืองสด ฟ้าเทอร์ควอยซ์',
+    channelTextFill: '#FFFFFF',
+    channelTextStroke: '#EC4899',
     rankFill: '#FDE047',
     rankSecondary: '#EC4899',
     rankWaveAccent: '#06B6D4',
@@ -281,6 +289,8 @@ export const COLOR_THEMES: Record<ThemeId, ColorTheme> = {
     id: 'sai_yor_neon',
     name: 'นีออนสายย่อ (Sai Yor Neon)',
     subtitle: 'เขียวมะนาว ม่วงเข้ม ชมพูฮอตพิงก์',
+    channelTextFill: '#A3E635',
+    channelTextStroke: '#7C3AED',
     rankFill: '#A3E635',
     rankSecondary: '#F43F5E',
     rankWaveAccent: '#A855F7',
@@ -305,6 +315,8 @@ export const COLOR_THEMES: Record<ThemeId, ColorTheme> = {
     id: 'local_news',
     name: 'ข่าวชาวบ้านสุดป่วน (Viral News)',
     subtitle: 'แดงด่วนพิเศษ เหลืองคาดดำ น้ำเงินเข้ม',
+    channelTextFill: '#FFFFFF',
+    channelTextStroke: '#DC2626',
     rankFill: '#EF4444',
     rankSecondary: '#FACC15',
     rankWaveAccent: '#2563EB',
@@ -330,6 +342,8 @@ export const COLOR_THEMES: Record<ThemeId, ColorTheme> = {
 export function getThemeDefaultColors(themeId: ThemeId): CustomPhaseColors {
   const t = COLOR_THEMES[themeId] || COLOR_THEMES.temple_fair;
   return {
+    channelTextFill: t.channelTextFill,
+    channelTextStroke: t.channelTextStroke,
     rankFill: t.rankFill,
     rankSecondary: t.rankSecondary,
     rankWaveAccent: t.rankWaveAccent,
@@ -420,6 +434,9 @@ export const PRESET_TEMPLATES: PresetTemplate[] = [
 ];
 
 export const DEFAULT_LOGO_CONFIG: LogoConfig = {
+  channelEnabled: true,
+  channelText: 'เรียงเรื่องลั่น',
+  channelTextSize: 54,
   rankNumber: '5',
   rankNumberSize: 182,
   topText: 'อันดับ',
@@ -457,14 +474,11 @@ export const DEFAULT_LOGO_CONFIG: LogoConfig = {
     supersampling: true,
   },
   props: {
-    thaiFlagRibbon: true,
-    tinTray: true,
     marigoldGarland: true,
     hornSpeaker: true,
     interviewMic: true,
-    micChannelTag: 'ฮาTV',
+    micChannelTag: 'เรียงเรื่องลั่น',
     recCamera: true,
-    clownMascot: true,
   },
   sfx: {
     masterEnabled: true,

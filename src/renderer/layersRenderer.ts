@@ -13,19 +13,16 @@ import { renderStyledRankNumber } from './numberEffectsEngine';
 import {
   drawInterviewMic,
   drawRecCamera,
-  drawThaiFlagRibbon,
 } from './props/stageProps';
 import {
-  drawClownMascot,
   drawEpMessagePop,
   drawHornSpeaker,
   drawMarigoldGarland,
-  drawTinTray,
 } from './props/comedyProps';
 
 /**
- * Renders Layer 1: Top ("5 อันดับ") with Flowing Wave Gradient / Two-Tone / Solid 3D
- * and customizable font sizes for both the Rank Number and Top Text
+ * Renders Layer 0 ("เรียงเรื่องลั่น" Channel Header) + Layer 1: Top ("5 อันดับ")
+ * with Flowing Wave Gradient / Two-Tone / Solid 3D and customizable font sizes
  */
 export function renderTopLayer(
   ctx: CanvasRenderingContext2D,
@@ -50,7 +47,7 @@ export function renderTopLayer(
   const topSizeScale = topFontSize / 94;
 
   ctx.save();
-  ctx.translate(parallaxX * 0.45, -164 + floatTop + parallaxY * 0.45);
+  ctx.translate(parallaxX * 0.45, -158 + floatTop + parallaxY * 0.45);
 
   // Measure "อันดับ" and Big "5" at their user-configured sizes
   ctx.font = `700 ${topFontSize}px "Chonburi", "Kanit", sans-serif`;
@@ -65,7 +62,7 @@ export function renderTopLayer(
   // 1A. Big Rank Number ("5") with Wave Gradient, Two-Tone, or Solid 3D
   ctx.save();
   const numCenterX = startX + rankNumW / 2;
-  ctx.translate(numCenterX, -10);
+  ctx.translate(numCenterX, -6);
   ctx.scale(numSpring.value * scaleX, numSpring.value * scaleY);
   ctx.rotate(-0.11 + numSpring.velocity * -0.02);
 
@@ -82,7 +79,7 @@ export function renderTopLayer(
   // 1B. Top Text ("อันดับ") with Staggered Per-Grapheme Thai Choreography
   ctx.save();
   const labelCenterX = startX + rankNumW + gapBetween + topLabelW / 2;
-  ctx.translate(labelCenterX, 6);
+  ctx.translate(labelCenterX, 8);
   ctx.rotate(-0.03);
   ctx.font = `700 ${topFontSize}px "Chonburi", "Kanit", sans-serif`;
 
@@ -113,6 +110,85 @@ export function renderTopLayer(
     }
   );
   ctx.restore();
+
+  // 0. Channel Brand Title ("เรียงเรื่องลั่น") Curved Arch + Overhead Stamp-Drop Animation
+  // Rendered after "5 อันดับ" with generous arch lift so "5" never overlaps or covers it
+  const rawChannelText = (config.channelText || '').trim();
+  if (config.channelEnabled !== false && rawChannelText.length > 0) {
+    const channelFontSize = config.channelTextSize || 54;
+    const chSizeScale = channelFontSize / 54;
+    const archHeight = Math.round(34 * chSizeScale);
+    const channelY = -Math.max(134, Math.round(rankFontSize * 0.72));
+    const opticalCenterX = 14;
+
+    ctx.save();
+    ctx.translate(opticalCenterX, channelY);
+    ctx.font = `700 ${channelFontSize}px "Chonburi", "Kanit", sans-serif`;
+
+    const channelTextW = ctx.measureText(rawChannelText).width;
+    const starPopSpring = solveSpring(time - 0.24, config.physics, 1.0);
+    if (starPopSpring.value > 0.02) {
+      const starScale = starPopSpring.value * chSizeScale;
+      const starDist = channelTextW / 2 + 34 * chSizeScale;
+      const starEndY = archHeight * 0.22;
+      ctx.save();
+      ctx.scale(starScale, starScale);
+      drawStar(
+        ctx,
+        -starDist / Math.max(0.1, starScale),
+        starEndY / Math.max(0.1, starScale),
+        5,
+        16 * chSizeScale,
+        7 * chSizeScale,
+        theme.channelTextFill || '#FEF08A',
+        '#09090B',
+        4
+      );
+      drawStar(
+        ctx,
+        starDist / Math.max(0.1, starScale),
+        starEndY / Math.max(0.1, starScale),
+        5,
+        16 * chSizeScale,
+        7 * chSizeScale,
+        theme.rankFill || '#FACC15',
+        '#09090B',
+        4
+      );
+      ctx.restore();
+    }
+
+    const channelShimmerP =
+      config.physics.enableLightSweep && time >= 1.55 && time <= 2.85
+        ? clamp((time - 1.55) / 0.85)
+        : -1;
+
+    drawStaggeredThaiText(
+      ctx,
+      rawChannelText,
+      0,
+      0,
+      time - 0.02,
+      config.physics,
+      {
+        fill: theme.channelTextFill || '#FEF08A',
+        secondaryFill: theme.rankFill,
+        stroke: theme.channelTextStroke || '#DC2626',
+        extrudeColor: '#09090B',
+        extrudeDepth: Math.max(6, Math.round(10 * chSizeScale)),
+        strokeWidth: Math.max(10, Math.round(16 * chSizeScale)),
+        highlightColor: '#FFFFFF',
+      },
+      {
+        dropFromY: -115,
+        staggerScale: 0.95,
+        stampScaleFrom: 1.65,
+        archHeight,
+        shimmerSweepProgress: channelShimmerP,
+      }
+    );
+    ctx.restore();
+  }
 
   ctx.restore();
 }
@@ -407,7 +483,7 @@ export function renderBottomLayer(
 }
 
 /**
- * Renders the Back Stage Props (Thai Flag Ribbon, Clown Mascot, Tin Tray, Horn Speaker) & Front EP Pop
+ * Renders the Back Stage Props (Horn Speaker) & Front EP Pop
  */
 export function renderBackPropsAndEpBadge(
   ctx: CanvasRenderingContext2D,
@@ -422,26 +498,6 @@ export function renderBackPropsAndEpBadge(
   if (layer === 'back') {
     ctx.save();
     ctx.translate(parallaxX * 0.25, parallaxY * 0.25);
-
-    if (config.props.thaiFlagRibbon) {
-      drawThaiFlagRibbon(
-        ctx,
-        0,
-        -142,
-        bannerWidth + 135,
-        time,
-        time,
-        config.physics
-      );
-    }
-
-    if (config.props.clownMascot) {
-      drawClownMascot(ctx, 18, -318, time - 1.28, time, config.physics);
-    }
-
-    if (config.props.tinTray) {
-      drawTinTray(ctx, 248, -246, time - 1.24, time, config.physics);
-    }
 
     if (config.props.hornSpeaker) {
       drawHornSpeaker(ctx, -274, -232, time - 0.6, time, config.physics);
