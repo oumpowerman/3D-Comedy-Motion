@@ -1,0 +1,6 @@
+{
+  "name": "Thai Comedy Motion Logo Studio",
+  "description": "สตูดิโอสร้าง Motion Logo 5 อันดับ ... สุดฮา สไตล์งานวัดและตลกคาเฟ่ไทย พร้อมเสียงเอฟเฟกต์และเรคคอร์ดวิดีโอสำหรับ TikTok, Reels และ YouTube",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,151 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 0: Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidThemeId(val) {
+      return val is string && val.size() <= 32 && val in ['temple_fair', 'cafe_comedy', 'sai_yor_neon', 'local_news'];
+    }
+
+    function isValidBannerStyle(val) {
+      return val is string && val.size() <= 32 && val in ['temple_marquee', 'canvas_scroll', 'cafe_neon'];
+    }
+
+    function isValidAspectRatio(val) {
+      return val is string && val.size() <= 16 && val in ['9:16', '16:9', '1:1'];
+    }
+
+    function isValidBgMode(val) {
+      return val is string && val.size() <= 24 && val in ['transparent', 'green', 'blue', 'sunburst'];
+    }
+
+    function isValidWorkspaceState(data) {
+      return data.keys().hasAll([
+          'ownerId', 'rankNumber', 'topText', 'middleText', 'bottomText',
+          'epText', 'themeId', 'bannerStyle', 'aspectRatio', 'bgMode',
+          'configPayload', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'rankNumber', 'topText', 'middleText', 'bottomText',
+          'epText', 'themeId', 'bannerStyle', 'aspectRatio', 'bgMode',
+          'configPayload', 'updatedAt'
+        ])
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128
+        && data.ownerId == request.auth.uid
+        && data.rankNumber is string && data.rankNumber.size() <= 10
+        && data.topText is string && data.topText.size() <= 40
+        && data.middleText is string && data.middleText.size() <= 120
+        && data.bottomText is string && data.bottomText.size() <= 40
+        && data.epText is string && data.epText.size() <= 24
+        && isValidThemeId(data.themeId)
+        && isValidBannerStyle(data.bannerStyle)
+        && isValidAspectRatio(data.aspectRatio)
+        && isValidBgMode(data.bgMode)
+        && data.configPayload is map && data.configPayload.size() <= 30
+        && data.updatedAt == request.time;
+    }
+
+    function isValidCustomPreset(data) {
+      return data.keys().hasAll([
+          'ownerId', 'name', 'rankNumber', 'topText', 'middleText', 'bottomText',
+          'epText', 'themeId', 'bannerStyle', 'aspectRatio', 'bgMode',
+          'configPayload', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'name', 'rankNumber', 'topText', 'middleText', 'bottomText',
+          'epText', 'themeId', 'bannerStyle', 'aspectRatio', 'bgMode',
+          'configPayload', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128
+        && data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 60
+        && data.rankNumber is string && data.rankNumber.size() <= 10
+        && data.topText is string && data.topText.size() <= 40
+        && data.middleText is string && data.middleText.size() <= 120
+        && data.bottomText is string && data.bottomText.size() <= 40
+        && data.epText is string && data.epText.size() <= 24
+        && isValidThemeId(data.themeId)
+        && isValidBannerStyle(data.bannerStyle)
+        && isValidAspectRatio(data.aspectRatio)
+        && isValidBgMode(data.bgMode)
+        && data.configPayload is map && data.configPayload.size() <= 30
+        && data.updatedAt == request.time;
+    }
+
+    // Collection 1: /workspaces/{userId}
+    match /workspaces/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidWorkspaceState(incoming());
+
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidWorkspaceState(incoming())
+        && userId == request.auth.uid
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'rankNumber', 'topText', 'middleText', 'bottomText', 'epText',
+          'themeId', 'bannerStyle', 'aspectRatio', 'bgMode', 'configPayload', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && existing().ownerId == request.auth.uid;
+    }
+
+    // Collection 2: /presets/{presetId}
+    match /presets/{presetId} {
+      allow get: if isSignedIn()
+        && isValidId(presetId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isSignedIn()
+        && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && isValidId(presetId)
+        && isValidCustomPreset(incoming())
+        && incoming().createdAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(presetId)
+        && isValidCustomPreset(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'rankNumber', 'topText', 'middleText', 'bottomText', 'epText',
+          'themeId', 'bannerStyle', 'aspectRatio', 'bgMode', 'configPayload', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn()
+        && isValidId(presetId)
+        && existing().ownerId == request.auth.uid;
+    }
+  }
+}

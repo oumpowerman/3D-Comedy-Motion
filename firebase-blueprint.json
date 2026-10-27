@@ -1,0 +1,201 @@
+{
+  "entities": {
+    "WorkspaceState": {
+      "title": "WorkspaceState",
+      "description": "Stores the user's active motion logo configuration so returning to the studio restores their exact last settings.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the authenticated user who owns this workspace state.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "rankNumber": {
+          "type": "string",
+          "description": "Top rank number displayed on Layer 1.",
+          "maxLength": 10
+        },
+        "topText": {
+          "type": "string",
+          "description": "Top label displayed next to the rank number.",
+          "maxLength": 40
+        },
+        "middleText": {
+          "type": "string",
+          "description": "Dynamic middle banner text.",
+          "maxLength": 120
+        },
+        "bottomText": {
+          "type": "string",
+          "description": "Tilted bottom punchline text.",
+          "maxLength": 40
+        },
+        "epText": {
+          "type": "string",
+          "description": "Episode badge text.",
+          "maxLength": 24
+        },
+        "themeId": {
+          "type": "string",
+          "description": "Selected Thai color theme ID.",
+          "enum": ["temple_fair", "cafe_comedy", "sai_yor_neon", "local_news"],
+          "maxLength": 32
+        },
+        "bannerStyle": {
+          "type": "string",
+          "description": "Selected middle banner frame style.",
+          "enum": ["temple_marquee", "canvas_scroll", "cafe_neon"],
+          "maxLength": 32
+        },
+        "aspectRatio": {
+          "type": "string",
+          "description": "Selected video aspect ratio.",
+          "enum": ["9:16", "16:9", "1:1"],
+          "maxLength": 16
+        },
+        "bgMode": {
+          "type": "string",
+          "description": "Selected background export mode.",
+          "enum": ["transparent", "green", "blue", "sunburst"],
+          "maxLength": 24
+        },
+        "configPayload": {
+          "type": "object",
+          "description": "Full nested configuration map for props, physics, and typography."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last save."
+        }
+      },
+      "required": [
+        "ownerId",
+        "rankNumber",
+        "topText",
+        "middleText",
+        "bottomText",
+        "epText",
+        "themeId",
+        "bannerStyle",
+        "aspectRatio",
+        "bgMode",
+        "configPayload",
+        "updatedAt"
+      ]
+    },
+    "CustomPreset": {
+      "title": "CustomPreset",
+      "description": "A user-saved motion logo preset stored in Firestore for quick one-click switching.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the user who created this preset.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the saved preset.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "rankNumber": {
+          "type": "string",
+          "description": "Top rank number in this preset.",
+          "maxLength": 10
+        },
+        "topText": {
+          "type": "string",
+          "description": "Top layer label in this preset.",
+          "maxLength": 40
+        },
+        "middleText": {
+          "type": "string",
+          "description": "Middle banner text in this preset.",
+          "maxLength": 120
+        },
+        "bottomText": {
+          "type": "string",
+          "description": "Bottom layer punchline in this preset.",
+          "maxLength": 40
+        },
+        "epText": {
+          "type": "string",
+          "description": "Episode badge text in this preset.",
+          "maxLength": 24
+        },
+        "themeId": {
+          "type": "string",
+          "description": "Color theme ID for this preset.",
+          "enum": ["temple_fair", "cafe_comedy", "sai_yor_neon", "local_news"],
+          "maxLength": 32
+        },
+        "bannerStyle": {
+          "type": "string",
+          "description": "Middle banner style for this preset.",
+          "enum": ["temple_marquee", "canvas_scroll", "cafe_neon"],
+          "maxLength": 32
+        },
+        "aspectRatio": {
+          "type": "string",
+          "description": "Aspect ratio for this preset.",
+          "enum": ["9:16", "16:9", "1:1"],
+          "maxLength": 16
+        },
+        "bgMode": {
+          "type": "string",
+          "description": "Background mode for this preset.",
+          "enum": ["transparent", "green", "blue", "sunburst"],
+          "maxLength": 24
+        },
+        "configPayload": {
+          "type": "object",
+          "description": "Full nested configuration map for props, physics, and typography."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when preset was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when preset was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "name",
+        "rankNumber",
+        "topText",
+        "middleText",
+        "bottomText",
+        "epText",
+        "themeId",
+        "bannerStyle",
+        "aspectRatio",
+        "bgMode",
+        "configPayload",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/workspaces/{userId}": {
+      "schema": {
+        "$ref": "#/entities/WorkspaceState"
+      },
+      "description": "Stores each authenticated user's latest active workspace configuration."
+    },
+    "/presets/{presetId}": {
+      "schema": {
+        "$ref": "#/entities/CustomPreset"
+      },
+      "description": "Stores user-created motion logo presets."
+    }
+  }
+}
