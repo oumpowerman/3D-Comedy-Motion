@@ -38,17 +38,13 @@ class ComedySoundEngine {
     return this.streamDest ? this.streamDest.stream : null;
   }
 
-  /**
-   * Phase 1 (0.0s): เสียง ฟึ่บ! (Flag Ribbon Whoosh) + เสียงเด้ง ดึ๋ง! (Cartoon Boing)
-   */
-  public playPhase1Boing(sfx?: SfxConfig) {
-    if (sfx && (!sfx.masterEnabled || !sfx.phase1Boing)) return;
-    const { ctx, out } = this.ensureContext();
-    if (sfx) this.setVolume(sfx.masterVolume);
-    const now = ctx.currentTime;
-
-    // 1. Flag Whoosh ("ฟึ่บ!")
-    const bufferSize = ctx.sampleRate * 0.18;
+  private schedulePhase1BoingOnContext(
+    ctx: BaseAudioContext,
+    out: AudioNode,
+    startTime: number
+  ) {
+    // 1. Whoosh ("ฟึ่บ!")
+    const bufferSize = Math.floor(ctx.sampleRate * 0.18);
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -59,20 +55,20 @@ class ComedySoundEngine {
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(300, now);
-    filter.frequency.exponentialRampToValueAtTime(1400, now + 0.09);
-    filter.frequency.exponentialRampToValueAtTime(400, now + 0.18);
+    filter.frequency.setValueAtTime(300, startTime);
+    filter.frequency.exponentialRampToValueAtTime(1400, startTime + 0.09);
+    filter.frequency.exponentialRampToValueAtTime(400, startTime + 0.18);
 
     const whooshGain = ctx.createGain();
-    whooshGain.gain.setValueAtTime(0.01, now);
-    whooshGain.gain.linearRampToValueAtTime(0.45, now + 0.06);
-    whooshGain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+    whooshGain.gain.setValueAtTime(0.01, startTime);
+    whooshGain.gain.linearRampToValueAtTime(0.45, startTime + 0.06);
+    whooshGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.18);
 
     whiteNoise.connect(filter);
     filter.connect(whooshGain);
     whooshGain.connect(out);
-    whiteNoise.start(now);
-    whiteNoise.stop(now + 0.18);
+    whiteNoise.start(startTime);
+    whiteNoise.stop(startTime + 0.18);
 
     // 2. Overshoot Boing ("ดึ๋ง!")
     const osc = ctx.createOscillator();
@@ -81,89 +77,78 @@ class ComedySoundEngine {
     const boingGain = ctx.createGain();
 
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(150, now + 0.08);
-    osc.frequency.exponentialRampToValueAtTime(480, now + 0.22);
-    osc.frequency.exponentialRampToValueAtTime(240, now + 0.45);
+    osc.frequency.setValueAtTime(150, startTime + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(480, startTime + 0.22);
+    osc.frequency.exponentialRampToValueAtTime(240, startTime + 0.45);
 
     lfo.type = 'sine';
-    lfo.frequency.setValueAtTime(26, now + 0.08);
-    lfoGain.gain.setValueAtTime(65, now + 0.08);
-    lfoGain.gain.exponentialRampToValueAtTime(4, now + 0.45);
+    lfo.frequency.setValueAtTime(26, startTime + 0.08);
+    lfoGain.gain.setValueAtTime(65, startTime + 0.08);
+    lfoGain.gain.exponentialRampToValueAtTime(4, startTime + 0.45);
 
-    boingGain.gain.setValueAtTime(0.001, now + 0.08);
-    boingGain.gain.linearRampToValueAtTime(0.55, now + 0.11);
-    boingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.46);
+    boingGain.gain.setValueAtTime(0.001, startTime + 0.08);
+    boingGain.gain.linearRampToValueAtTime(0.55, startTime + 0.11);
+    boingGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.46);
 
     lfo.connect(lfoGain);
     lfoGain.connect(osc.frequency);
     osc.connect(boingGain);
     boingGain.connect(out);
 
-    lfo.start(now + 0.08);
-    osc.start(now + 0.08);
-    lfo.stop(now + 0.46);
-    osc.stop(now + 0.46);
+    lfo.start(startTime + 0.08);
+    osc.start(startTime + 0.08);
+    lfo.stop(startTime + 0.46);
+    osc.stop(startTime + 0.46);
   }
 
-  /**
-   * Phase 2 (0.5s): เสียงรูดม้วนผ้าใบ + เสียงการ์ตูนโผล่ (Pop! Pop!)
-   */
-  public playPhase2UnrollPop(sfx?: SfxConfig) {
-    if (sfx && (!sfx.masterEnabled || !sfx.phase2UnrollPop)) return;
-    const { ctx, out } = this.ensureContext();
-    if (sfx) this.setVolume(sfx.masterVolume);
-    const now = ctx.currentTime;
-
-    // 1. Canvas Unroll Zipper Slide
+  private schedulePhase2UnrollPopOnContext(
+    ctx: BaseAudioContext,
+    out: AudioNode,
+    startTime: number
+  ) {
     const slideOsc = ctx.createOscillator();
     const slideGain = ctx.createGain();
     slideOsc.type = 'sawtooth';
-    slideOsc.frequency.setValueAtTime(180, now);
-    slideOsc.frequency.exponentialRampToValueAtTime(720, now + 0.22);
+    slideOsc.frequency.setValueAtTime(180, startTime);
+    slideOsc.frequency.exponentialRampToValueAtTime(720, startTime + 0.22);
 
     const lowpass = ctx.createBiquadFilter();
     lowpass.type = 'lowpass';
-    lowpass.frequency.setValueAtTime(1600, now);
+    lowpass.frequency.setValueAtTime(1600, startTime);
 
-    slideGain.gain.setValueAtTime(0.22, now);
-    slideGain.gain.exponentialRampToValueAtTime(0.01, now + 0.24);
+    slideGain.gain.setValueAtTime(0.22, startTime);
+    slideGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.24);
 
     slideOsc.connect(lowpass);
     lowpass.connect(slideGain);
     slideGain.connect(out);
-    slideOsc.start(now);
-    slideOsc.stop(now + 0.24);
+    slideOsc.start(startTime);
+    slideOsc.stop(startTime + 0.24);
 
-    // 2. Twin Cork Pops for Mic (Left) & Camera (Right)
     [0.16, 0.28].forEach((offset, idx) => {
       const popOsc = ctx.createOscillator();
       const popGain = ctx.createGain();
       popOsc.type = 'sine';
       const baseFreq = idx === 0 ? 320 : 420;
-      popOsc.frequency.setValueAtTime(baseFreq, now + offset);
-      popOsc.frequency.exponentialRampToValueAtTime(baseFreq * 3.1, now + offset + 0.085);
+      popOsc.frequency.setValueAtTime(baseFreq, startTime + offset);
+      popOsc.frequency.exponentialRampToValueAtTime(baseFreq * 3.1, startTime + offset + 0.085);
 
-      popGain.gain.setValueAtTime(0.5, now + offset);
-      popGain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.095);
+      popGain.gain.setValueAtTime(0.5, startTime + offset);
+      popGain.gain.exponentialRampToValueAtTime(0.001, startTime + offset + 0.095);
 
       popOsc.connect(popGain);
       popGain.connect(out);
-      popOsc.start(now + offset);
-      popOsc.stop(now + offset + 0.1);
+      popOsc.start(startTime + offset);
+      popOsc.stop(startTime + offset + 0.1);
     });
   }
 
-  /**
-   * Phase 3 (1.2s): เสียงตีถาดสังกะสีตลกคาเฟ่ (ป๊าบ!) + เสียงสปริงตัวตลกเด้ง
-   */
-  public playPhase3TraySmash(sfx?: SfxConfig) {
-    if (sfx && (!sfx.masterEnabled || !sfx.phase3TraySmash)) return;
-    const { ctx, out } = this.ensureContext();
-    if (sfx) this.setVolume(sfx.masterVolume);
-    const now = ctx.currentTime;
-
-    // 1. Metallic Tin Tray Slap ("ป๊าบ!") - Inharmonic metallic partials + noise burst
-    const bufferSize = ctx.sampleRate * 0.35;
+  private schedulePhase3TraySmashOnContext(
+    ctx: BaseAudioContext,
+    out: AudioNode,
+    startTime: number
+  ) {
+    const bufferSize = Math.floor(ctx.sampleRate * 0.35);
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -174,87 +159,79 @@ class ComedySoundEngine {
 
     const bandpass = ctx.createBiquadFilter();
     bandpass.type = 'bandpass';
-    bandpass.frequency.setValueAtTime(1850, now);
-    bandpass.Q.setValueAtTime(1.8, now);
+    bandpass.frequency.setValueAtTime(1850, startTime);
+    bandpass.Q.setValueAtTime(1.8, startTime);
 
     const slapGain = ctx.createGain();
-    slapGain.gain.setValueAtTime(0.85, now);
-    slapGain.gain.exponentialRampToValueAtTime(0.01, now + 0.32);
+    slapGain.gain.setValueAtTime(0.85, startTime);
+    slapGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.32);
 
     slapSource.connect(bandpass);
     bandpass.connect(slapGain);
     slapGain.connect(out);
-    slapSource.start(now);
+    slapSource.start(startTime);
 
-    // Metallic ring frequencies characteristic of a Thai tin tray (ถาดสังกะสี)
     const trayFreqs = [540, 825, 1190, 1680, 2340];
     trayFreqs.forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = i % 2 === 0 ? 'square' : 'triangle';
-      osc.frequency.setValueAtTime(freq, now);
-      osc.frequency.exponentialRampToValueAtTime(freq * 0.96, now + 0.35);
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.96, startTime + 0.35);
 
-      gain.gain.setValueAtTime(0.18 / (i + 1), now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      gain.gain.setValueAtTime(0.18 / (i + 1), startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.38);
 
       osc.connect(gain);
       gain.connect(out);
-      osc.start(now);
-      osc.stop(now + 0.38);
+      osc.start(startTime);
+      osc.stop(startTime + 0.38);
     });
 
-    // 2. Quick Clown Laugh / Honk Notes ("ฮ่า-ฮ่า!")
     [0.14, 0.26].forEach((delay, idx) => {
       const honk = ctx.createOscillator();
       const honkGain = ctx.createGain();
       honk.type = 'sawtooth';
       const startF = idx === 0 ? 580 : 490;
-      honk.frequency.setValueAtTime(startF, now + delay);
-      honk.frequency.exponentialRampToValueAtTime(startF * 0.72, now + delay + 0.1);
+      honk.frequency.setValueAtTime(startF, startTime + delay);
+      honk.frequency.exponentialRampToValueAtTime(startF * 0.72, startTime + delay + 0.1);
 
       const formant = ctx.createBiquadFilter();
       formant.type = 'bandpass';
-      formant.frequency.setValueAtTime(1100, now + delay);
-      formant.Q.setValueAtTime(3.0, now + delay);
+      formant.frequency.setValueAtTime(1100, startTime + delay);
+      formant.Q.setValueAtTime(3.0, startTime + delay);
 
-      honkGain.gain.setValueAtTime(0.35, now + delay);
-      honkGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.11);
+      honkGain.gain.setValueAtTime(0.35, startTime + delay);
+      honkGain.gain.exponentialRampToValueAtTime(0.001, startTime + delay + 0.11);
 
       honk.connect(formant);
       formant.connect(honkGain);
       honkGain.connect(out);
-      honk.start(now + delay);
-      honk.stop(now + delay + 0.12);
+      honk.start(startTime + delay);
+      honk.stop(startTime + delay + 0.12);
     });
   }
 
-  /**
-   * Phase 4 (1.8s): เสียงกลองตบมุกตลกไทย ("ตึง... โป๊ะ! แฉ่!")
-   */
-  public playPhase4DrumJoke(sfx?: SfxConfig) {
-    if (sfx && (!sfx.masterEnabled || !sfx.phase4DrumJoke)) return;
-    const { ctx, out } = this.ensureContext();
-    if (sfx) this.setVolume(sfx.masterVolume);
-    const now = ctx.currentTime;
-
-    // 1. "ตึง!" (Tom Drum Pitch Bend Down)
+  private schedulePhase4DrumJokeOnContext(
+    ctx: BaseAudioContext,
+    out: AudioNode,
+    startTime: number
+  ) {
     const tom = ctx.createOscillator();
     const tomGain = ctx.createGain();
     tom.type = 'sine';
-    tom.frequency.setValueAtTime(210, now);
-    tom.frequency.exponentialRampToValueAtTime(85, now + 0.22);
+    tom.frequency.setValueAtTime(210, startTime);
+    tom.frequency.exponentialRampToValueAtTime(85, startTime + 0.22);
 
-    tomGain.gain.setValueAtTime(0.75, now);
-    tomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    tomGain.gain.setValueAtTime(0.75, startTime);
+    tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
 
     tom.connect(tomGain);
     tomGain.connect(out);
-    tom.start(now);
-    tom.stop(now + 0.26);
+    tom.start(startTime);
+    tom.stop(startTime + 0.26);
 
-    // 2. "โป๊ะ!" (High Rimshot Snare at +0.20s)
-    const snareTime = now + 0.2;
+    const snareTime = startTime + 0.2;
     const snareOsc = ctx.createOscillator();
     const snareGain = ctx.createGain();
     snareOsc.type = 'triangle';
@@ -269,9 +246,8 @@ class ComedySoundEngine {
     snareOsc.start(snareTime);
     snareOsc.stop(snareTime + 0.15);
 
-    // 3. Cymbal Splash ("แฉ่!") at +0.34s
-    const cymTime = now + 0.34;
-    const bufferSize = ctx.sampleRate * 0.45;
+    const cymTime = startTime + 0.34;
+    const bufferSize = Math.floor(ctx.sampleRate * 0.45);
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -294,35 +270,29 @@ class ComedySoundEngine {
     cymNoise.start(cymTime);
   }
 
-  /**
-   * Phase 5 (3.5s): เสียงดูดรวบและแตกดาวกระจาย ("วิ้งงง! ฟิ้ววว!")
-   */
-  public playPhase5SwooshOut(sfx?: SfxConfig) {
-    if (sfx && (!sfx.masterEnabled || !sfx.phase5SwooshOut)) return;
-    const { ctx, out } = this.ensureContext();
-    if (sfx) this.setVolume(sfx.masterVolume);
-    const now = ctx.currentTime;
-
-    // Suction Zip + Starburst Chime Arpeggio
+  private schedulePhase5SwooshOutOnContext(
+    ctx: BaseAudioContext,
+    out: AudioNode,
+    startTime: number
+  ) {
     const zipOsc = ctx.createOscillator();
     const zipGain = ctx.createGain();
     zipOsc.type = 'sine';
-    zipOsc.frequency.setValueAtTime(620, now);
-    zipOsc.frequency.exponentialRampToValueAtTime(140, now + 0.16);
-    zipOsc.frequency.exponentialRampToValueAtTime(1450, now + 0.36);
+    zipOsc.frequency.setValueAtTime(620, startTime);
+    zipOsc.frequency.exponentialRampToValueAtTime(140, startTime + 0.16);
+    zipOsc.frequency.exponentialRampToValueAtTime(1450, startTime + 0.36);
 
-    zipGain.gain.setValueAtTime(0.4, now);
-    zipGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+    zipGain.gain.setValueAtTime(0.4, startTime);
+    zipGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.38);
 
     zipOsc.connect(zipGain);
     zipGain.connect(out);
-    zipOsc.start(now);
-    zipOsc.stop(now + 0.39);
+    zipOsc.start(startTime);
+    zipOsc.stop(startTime + 0.39);
 
-    // Sparkle Chimes ("วิ้ง!")
     const chimeNotes = [1046.5, 1318.5, 1567.98, 2093.0];
     chimeNotes.forEach((freq, idx) => {
-      const start = now + 0.12 + idx * 0.045;
+      const start = startTime + 0.12 + idx * 0.045;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
@@ -336,6 +306,90 @@ class ComedySoundEngine {
       osc.start(start);
       osc.stop(start + 0.23);
     });
+  }
+
+  public playPhase1Boing(sfx?: SfxConfig) {
+    if (sfx && (!sfx.masterEnabled || !sfx.phase1Boing)) return;
+    const { ctx, out } = this.ensureContext();
+    if (sfx) this.setVolume(sfx.masterVolume);
+    this.schedulePhase1BoingOnContext(ctx, out, ctx.currentTime);
+  }
+
+  public playPhase2UnrollPop(sfx?: SfxConfig) {
+    if (sfx && (!sfx.masterEnabled || !sfx.phase2UnrollPop)) return;
+    const { ctx, out } = this.ensureContext();
+    if (sfx) this.setVolume(sfx.masterVolume);
+    this.schedulePhase2UnrollPopOnContext(ctx, out, ctx.currentTime);
+  }
+
+  public playPhase3TraySmash(sfx?: SfxConfig) {
+    if (sfx && (!sfx.masterEnabled || !sfx.phase3TraySmash)) return;
+    const { ctx, out } = this.ensureContext();
+    if (sfx) this.setVolume(sfx.masterVolume);
+    this.schedulePhase3TraySmashOnContext(ctx, out, ctx.currentTime);
+  }
+
+  public playPhase4DrumJoke(sfx?: SfxConfig) {
+    if (sfx && (!sfx.masterEnabled || !sfx.phase4DrumJoke)) return;
+    const { ctx, out } = this.ensureContext();
+    if (sfx) this.setVolume(sfx.masterVolume);
+    this.schedulePhase4DrumJokeOnContext(ctx, out, ctx.currentTime);
+  }
+
+  public playPhase5SwooshOut(sfx?: SfxConfig) {
+    if (sfx && (!sfx.masterEnabled || !sfx.phase5SwooshOut)) return;
+    const { ctx, out } = this.ensureContext();
+    if (sfx) this.setVolume(sfx.masterVolume);
+    this.schedulePhase5SwooshOutOnContext(ctx, out, ctx.currentTime);
+  }
+
+  /**
+   * Renders the full 4.0s procedural comedy soundtrack into a 16-bit PCM buffer
+   * for embedding directly into QuickTime .MOV exports.
+   */
+  public async renderOfflineAudioTrack(
+    sfx: SfxConfig,
+    durationSeconds = 4.0,
+    sampleRate = 48000
+  ): Promise<Int16Array | null> {
+    if (!sfx.masterEnabled) return null;
+    try {
+      const totalSamples = Math.floor(sampleRate * durationSeconds);
+      const offlineCtx = new OfflineAudioContext(1, totalSamples, sampleRate);
+      const master = offlineCtx.createGain();
+      master.gain.setValueAtTime(
+        Math.max(0, Math.min(1, sfx.masterVolume)),
+        0
+      );
+      master.connect(offlineCtx.destination);
+
+      if (sfx.phase1Boing) {
+        this.schedulePhase1BoingOnContext(offlineCtx, master, 0.02);
+      }
+      if (sfx.phase2UnrollPop) {
+        this.schedulePhase2UnrollPopOnContext(offlineCtx, master, 0.5);
+      }
+      if (sfx.phase3TraySmash) {
+        this.schedulePhase3TraySmashOnContext(offlineCtx, master, 1.2);
+      }
+      if (sfx.phase4DrumJoke) {
+        this.schedulePhase4DrumJokeOnContext(offlineCtx, master, 1.8);
+      }
+      if (sfx.phase5SwooshOut) {
+        this.schedulePhase5SwooshOutOnContext(offlineCtx, master, 3.5);
+      }
+
+      const renderedBuffer = await offlineCtx.startRendering();
+      const floatData = renderedBuffer.getChannelData(0);
+      const pcm16 = new Int16Array(floatData.length);
+      for (let i = 0; i < floatData.length; i++) {
+        const s = Math.max(-1, Math.min(1, floatData[i]));
+        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      }
+      return pcm16;
+    } catch {
+      return null;
+    }
   }
 }
 

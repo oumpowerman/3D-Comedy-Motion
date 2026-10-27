@@ -9,6 +9,7 @@ import {
   PresetTemplate,
 } from './types/motion';
 import { renderMotionLogoFrame } from './utils/canvasRenderer';
+import { exportQuickTimeMov } from './utils/movExporter';
 import { soundEngine } from './utils/soundEngine';
 import {
   deletePresetFromFirestore,
@@ -361,11 +362,16 @@ export default function App() {
       const dt = Math.min(0.05, (now - lastFramePerfRef.current) / 1000);
       lastFramePerfRef.current = now;
 
-      if (isPlaying || isRecording) {
+      const isLiveMediaRecording =
+        isRecording &&
+        mediaRecorderRef.current !== null &&
+        mediaRecorderRef.current.state === 'recording';
+
+      if (isPlaying || isLiveMediaRecording) {
         const prevT = timeRef.current;
         let nextT = prevT + dt;
 
-        if (isRecording) {
+        if (isLiveMediaRecording) {
           setRecordingProgress(Math.min(1, nextT / 4.0));
           if (nextT >= 4.0) {
             nextT = 4.0;
@@ -611,7 +617,67 @@ export default function App() {
     } catch {
       recordingForceTransparentRef.current = false;
       setIsRecording(false);
-      showToast('เบราว์เซอร์ไม่รองรับการอัดวิดีโอโดยตรง กรุณาใช้ปุ่ม PNG ไม่มีพื้นหลัง');
+      showToast('เบราว์เซอร์ไม่รองรับการอัดวิดีโอโดยตรง กรุณาใช้ปุ่ม .MOV หรือ PNG');
+    }
+  };
+
+  // Export Genuine QuickTime .MOV Video (32-bit RGBA Alpha or with Backdrop + Synced PCM Audio)
+  const handleExportMov = async (forceTransparent = true) => {
+    if (isRecording) return;
+    const { width, height } = getCanvasResolution();
+
+    try {
+      recordingForceTransparentRef.current = forceTransparent;
+      setIsPlaying(false);
+      setIsRecording(true);
+      setRecordingProgress(0);
+
+      const isAlphaExport = forceTransparent || config.bgMode === 'transparent';
+      showToast(
+        isAlphaExport
+          ? 'กำลังเรนเดอร์ไฟล์ .MOV พื้นหลังโปร่งใส (32-bit Alpha) พร้อมเสียง...'
+          : 'กำลังเรนเดอร์ไฟล์ .MOV ความละเอียดสูงพร้อมเสียง...',
+        3500
+      );
+
+      const movBlob = await exportQuickTimeMov({
+        config,
+        width,
+        height,
+        forceTransparent,
+        fps: 30,
+        durationSeconds: 4.0,
+        onProgress: (progress, frameTime) => {
+          setRecordingProgress(progress);
+          timeRef.current = frameTime;
+          setCurrentTime(frameTime);
+        },
+      });
+
+      const url = URL.createObjectURL(movBlob);
+      const a = document.createElement('a');
+      const safeName = (config.middleText || 'thai-comedy-logo').replace(/\s+/g, '-');
+      const bgTag = isAlphaExport ? 'alpha-nobg' : config.bgMode;
+      a.href = url;
+      a.download = `motion-5-อันดับ-${safeName}-${config.epText}-${bgTag}.mov`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+      showToast(
+        isAlphaExport
+          ? 'ดาวน์โหลดไฟล์ .MOV ไม่มีพื้นหลัง (32-bit RGBA Alpha) พร้อมเสียงสำเร็จแล้ว!'
+          : 'ดาวน์โหลดไฟล์วิดีโอ .MOV พร้อมเสียงเอฟเฟกต์สำเร็จแล้ว!',
+        4500
+      );
+    } catch {
+      showToast('เกิดข้อผิดพลาดในการสร้างไฟล์ .MOV กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      recordingForceTransparentRef.current = false;
+      setIsRecording(false);
+      setRecordingProgress(0);
+      timeRef.current = 0;
+      setCurrentTime(0);
+      setIsPlaying(true);
     }
   };
 
@@ -655,17 +721,17 @@ export default function App() {
           ))}
         </nav>
 
-        {/* Zone 3: 1 primary action (One-Click Transparent Video Download) */}
+        {/* Zone 3: 1 primary action (One-Click Transparent .MOV Download) */}
         <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
             disabled={isRecording}
-            onClick={() => handleStartRecording(true)}
+            onClick={() => handleExportMov(true)}
             className="px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 rounded-lg hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0"
           >
             {isRecording
-              ? `กำลังเรคคอร์ด ${Math.round(recordingProgress * 100)}%`
-              : 'ดาวน์โหลดวิดีโอ (ไม่มีพื้นหลัง)'}
+              ? `กำลังเรนเดอร์ ${Math.round(recordingProgress * 100)}%`
+              : 'ดาวน์โหลด .MOV (ไม่มีพื้นหลัง)'}
           </button>
         </div>
       </header>
@@ -886,6 +952,7 @@ export default function App() {
             isRecording={isRecording}
             recordingProgress={recordingProgress}
             onStartRecording={handleStartRecording}
+            onExportMov={handleExportMov}
             onDownloadPng={handleDownloadPng}
           />
         )}

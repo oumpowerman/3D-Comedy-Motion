@@ -54,6 +54,7 @@ interface RightInspectorProps {
   isRecording: boolean;
   recordingProgress: number;
   onStartRecording: (forceTransparent?: boolean) => void;
+  onExportMov: (forceTransparent?: boolean) => void;
   onDownloadPng: (forceTransparent?: boolean) => void;
 }
 
@@ -129,6 +130,7 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
   isRecording,
   recordingProgress,
   onStartRecording,
+  onExportMov,
   onDownloadPng,
 }) => {
   const [activeTab, setActiveTab] = useState<RightTabId>('presets');
@@ -966,39 +968,69 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
         </AnimatePresence>
       </div>
 
-      {/* Pinned Bottom Export Dock — Always Accessible with 1-Click Transparent Export */}
+      {/* Pinned Bottom Export Dock — Always Accessible with 1-Click .MOV & WebM Transparent Export */}
       <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-2 shrink-0">
         <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
           <span className="font-semibold text-slate-200">
-            ส่งออกไฟล์นำไปตัดต่อทันที
+            ส่งออกไฟล์นำไปตัดต่อทันที (.MOV / .WebM / .PNG)
           </span>
           <span className="font-mono tabular-nums">
-            {config.aspectRatio} · 60fps
+            {config.aspectRatio}
           </span>
         </div>
 
-        {/* Primary Button 1: One-Click Transparent Video Export (No Background) */}
+        {/* Primary Button 1: One-Click QuickTime .MOV Transparent Video Export (32-bit RGBA Alpha) */}
         <motion.button
           whileHover={{ scale: isRecording ? 1 : 1.015 }}
           whileTap={{ scale: isRecording ? 1 : 0.98 }}
           type="button"
           disabled={isRecording}
-          onClick={() => onStartRecording(true)}
+          onClick={() => onExportMov(true)}
           className={`w-full py-2.5 px-3.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 ${
             isRecording
               ? 'bg-rose-600 text-white cursor-wait'
               : 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-sm'
           }`}
+          title="ส่งออกไฟล์ QuickTime .MOV โปร่งใส 32-bit RGBA (Alpha) พร้อมเสียงเอฟเฟกต์ สำหรับ Premiere / Final Cut / CapCut / DaVinci"
         >
           <Video className="w-4 h-4 shrink-0" />
           <span>
             {isRecording
-              ? `กำลังเรคคอร์ดวิดีโอ... ${Math.round(recordingProgress * 100)}%`
-              : 'ดาวน์โหลดวิดีโอ ไม่มีพื้นหลัง (Alpha WebM 4.0s)'}
+              ? `กำลังเรนเดอร์วิดีโอ... ${Math.round(recordingProgress * 100)}%`
+              : 'ดาวน์โหลด .MOV ไม่มีพื้นหลัง (Alpha 4.0s)'}
           </span>
         </motion.button>
 
-        {/* Secondary Row: Transparent PNG + Record with Selected Backdrop */}
+        {/* Row 2: Transparent WebM + .MOV with Selected Backdrop */}
+        <div className="grid grid-cols-2 gap-2">
+          <motion.button
+            whileHover={{ scale: isRecording ? 1 : 1.02 }}
+            whileTap={{ scale: isRecording ? 1 : 0.97 }}
+            type="button"
+            disabled={isRecording}
+            onClick={() => onStartRecording(true)}
+            className="py-2 px-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            title="เรคคอร์ดวิดีโอ WebM แบบเจาะพื้นหลังโปร่งใส (Alpha)"
+          >
+            <Video className="w-3.5 h-3.5 shrink-0" />
+            <span>.WebM ไม่มีพื้นหลัง</span>
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: isRecording ? 1 : 1.02 }}
+            whileTap={{ scale: isRecording ? 1 : 0.97 }}
+            type="button"
+            disabled={isRecording}
+            onClick={() => onExportMov(false)}
+            className="py-2 px-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            title="ส่งออกไฟล์ QuickTime .MOV พร้อมฉากหลังที่เลือกไว้"
+          >
+            <Video className="w-3.5 h-3.5 shrink-0" />
+            <span>.MOV รวมฉากหลัง</span>
+          </motion.button>
+        </div>
+
+        {/* Row 3: Transparent PNG + WebM/MP4 with Selected Backdrop */}
         <div className="grid grid-cols-2 gap-2">
           <motion.button
             whileHover={{ scale: isRecording ? 1 : 1.02 }}
@@ -1006,11 +1038,11 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
             type="button"
             disabled={isRecording}
             onClick={() => onDownloadPng(true)}
-            className="py-2 px-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            className="py-2 px-2.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
             title="ดาวน์โหลดภาพนิ่ง PNG แบบเจาะพื้นหลังโปร่งใส 100%"
           >
             <Camera className="w-3.5 h-3.5 shrink-0" />
-            <span>PNG ไม่มีพื้นหลัง</span>
+            <span>.PNG ไม่มีพื้นหลัง</span>
           </motion.button>
 
           <motion.button
@@ -1019,11 +1051,11 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
             type="button"
             disabled={isRecording}
             onClick={() => onStartRecording(false)}
-            className="py-2 px-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
-            title="เรคคอร์ดวิดีโอพร้อมฉากหลังตามที่เลือกไว้ด้านบน"
+            className="py-2 px-2.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            title="เรคคอร์ดวิดีโอ WebM/MP4 พร้อมฉากหลังตามที่เลือกไว้ด้านบน"
           >
             <Video className="w-3.5 h-3.5 shrink-0" />
-            <span>วิดีโอรวมฉากหลัง</span>
+            <span>.WebM รวมฉากหลัง</span>
           </motion.button>
         </div>
       </div>
