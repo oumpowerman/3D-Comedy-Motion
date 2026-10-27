@@ -251,7 +251,7 @@ export const LeftInspector: React.FC<LeftInspectorProps> = ({ config, onChange }
   };
 
   return (
-    <aside className="w-full lg:w-[350px] xl:w-[380px] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-y-auto">
+    <aside className="relative w-full lg:w-[350px] xl:w-[380px] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-y-auto">
       <div className="p-5 space-y-6">
         {/* Section 1: 3-Layer Stacked Text Controls */}
         <section className="space-y-4">
@@ -683,7 +683,7 @@ export const LeftInspector: React.FC<LeftInspectorProps> = ({ config, onChange }
                 3. ป้ายตัวเลข EP (Message Pop)
               </h2>
             </div>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+            <label className="relative inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={config.epEnabled}

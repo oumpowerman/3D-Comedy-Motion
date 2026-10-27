@@ -31,6 +31,8 @@ import {
   LogIn,
   LogOut,
   RefreshCw,
+  Pencil,
+  Save,
 } from 'lucide-react';
 
 type RightTabId = 'presets' | 'props_polish' | 'stage_sfx';
@@ -43,6 +45,7 @@ interface RightInspectorProps {
   onApplyPreset: (preset: SavedCustomPreset) => void;
   onSaveNewPreset: (name: string) => void;
   onUpdatePreset: (presetId: string) => void;
+  onRenamePreset: (presetId: string, newName: string) => void;
   onDeletePreset: (presetId: string) => void;
   userEmail: string | null;
   isSyncingCloud: boolean;
@@ -117,6 +120,7 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
   onApplyPreset,
   onSaveNewPreset,
   onUpdatePreset,
+  onRenamePreset,
   onDeletePreset,
   userEmail,
   isSyncingCloud,
@@ -129,6 +133,9 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<RightTabId>('presets');
   const [newPresetName, setNewPresetName] = useState<string>('');
+  const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState<string>('');
+  const [justSavedPresetId, setJustSavedPresetId] = useState<string | null>(null);
 
   const updateProp = <K extends keyof PropsConfig>(key: K, value: PropsConfig[K]) => {
     onChange((prev) => ({
@@ -255,7 +262,7 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
   };
 
   return (
-    <aside className="w-full lg:w-[360px] xl:w-[390px] shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col h-full overflow-hidden">
+    <aside className="relative w-full lg:w-[360px] xl:w-[390px] shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col h-full overflow-hidden">
       {/* Top Segmented Tab Bar with Framer Motion Sliding Pill Indicator */}
       <div className="p-3 bg-slate-950/70 border-b border-slate-800 shrink-0">
         <div className="grid grid-cols-3 gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800 relative">
@@ -293,7 +300,7 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
       </div>
 
       {/* Scrollable Middle Tab Content with AnimatePresence & Staggered Cards */}
-      <div className="flex-1 overflow-y-auto p-4 min-h-0">
+      <div className="relative flex-1 overflow-y-auto p-4 min-h-0">
         <AnimatePresence mode="wait">
           {/* =============================================================== */}
           {/* TAB 1: PRESET DATABASE & AUTO-SAVE MANAGER                      */}
@@ -386,11 +393,10 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                 </div>
               </motion.form>
 
-              {/* Visual Preset Cards Grid with Layout & Stagger Animations */}
+               {/* Visual Preset Cards Grid with Layout & Stagger Animations */}
               <motion.div variants={cardItemVariants} className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>รายการ Preset ที่บันทึกไว้</span>
-                  <span>คลิกเพื่อสลับใช้งานทันที</span>
+                  <span>คลิกการ์ดเพื่อใช้งาน · คลิกชื่อเพื่อเปลี่ยนชื่อ</span>
                 </div>
 
                 <motion.div layout className="space-y-2">
@@ -402,6 +408,8 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                         (preset.config.middleText === config.middleText &&
                           preset.config.themeId === config.themeId &&
                           preset.config.epText === config.epText);
+                      const isRenaming = editingPresetId === preset.id;
+                      const isJustSaved = justSavedPresetId === preset.id;
 
                       return (
                         <motion.div
@@ -411,41 +419,98 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                           initial="hidden"
                           animate="visible"
                           exit="exit"
-                          whileHover={{ y: -2, scale: 1.008 }}
+                          whileHover={{ y: -2, scale: 1.006 }}
                           transition={{
                             layout: { type: 'spring', stiffness: 360, damping: 30 },
                           }}
-                          className={`p-3 rounded-xl border transition-colors ${
+                          onClick={() => {
+                            if (!isRenaming) {
+                              onApplyPreset(preset);
+                            }
+                          }}
+                          className={`group/card relative p-3 rounded-xl border transition-colors cursor-pointer select-none ${
                             isActive
-                              ? 'bg-slate-800/95 border-amber-400 shadow-sm'
-                              : 'bg-slate-950/60 border-slate-800/90 hover:border-slate-700'
+                              ? 'bg-slate-800/90 border-amber-400 shadow-sm'
+                              : 'bg-slate-950/60 border-slate-800/90 hover:border-slate-700 hover:bg-slate-900/80'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <button
-                              type="button"
-                              onClick={() => onApplyPreset(preset)}
-                              className="text-left min-w-0 flex-1 group"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center -space-x-1 shrink-0">
-                                  <span
-                                    className="w-3.5 h-3.5 rounded-full border border-slate-950"
-                                    style={{ backgroundColor: pTheme.rankFill }}
+                            <div className="min-w-0 flex-1">
+                              {isRenaming ? (
+                                <form
+                                  onSubmit={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (editingNameValue.trim()) {
+                                      onRenamePreset(preset.id, editingNameValue);
+                                    }
+                                    setEditingPresetId(null);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1.5 mb-1"
+                                >
+                                  <input
+                                    type="text"
+                                    maxLength={40}
+                                    autoFocus
+                                    value={editingNameValue}
+                                    onFocus={(e) => e.currentTarget.select()}
+                                    onChange={(e) => setEditingNameValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Escape') {
+                                        e.stopPropagation();
+                                        setEditingPresetId(null);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      if (editingNameValue.trim()) {
+                                        onRenamePreset(preset.id, editingNameValue);
+                                      }
+                                      setEditingPresetId(null);
+                                    }}
+                                    className="w-full px-2 py-1 bg-slate-950 border border-amber-400 rounded-md text-xs font-bold text-white focus:outline-none"
                                   />
-                                  <span
-                                    className="w-3.5 h-3.5 rounded-full border border-slate-950"
-                                    style={{ backgroundColor: pTheme.bannerBgStart }}
-                                  />
-                                  <span
-                                    className="w-3.5 h-3.5 rounded-full border border-slate-950"
-                                    style={{ backgroundColor: pTheme.bottomTextStroke }}
-                                  />
+                                </form>
+                              ) : (
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="flex items-center -space-x-1 shrink-0">
+                                    <span
+                                      className="w-3.5 h-3.5 rounded-full border border-slate-950"
+                                      style={{ backgroundColor: pTheme.rankFill }}
+                                    />
+                                    <span
+                                      className="w-3.5 h-3.5 rounded-full border border-slate-950"
+                                      style={{ backgroundColor: pTheme.bannerBgStart }}
+                                    />
+                                    <span
+                                      className="w-3.5 h-3.5 rounded-full border border-slate-950"
+                                      style={{ backgroundColor: pTheme.bottomTextStroke }}
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingPresetId(preset.id);
+                                      setEditingNameValue(preset.name);
+                                    }}
+                                    title="คลิกเพื่อเปลี่ยนชื่อ Preset"
+                                    className="text-xs font-bold text-slate-100 hover:text-amber-300 hover:underline decoration-amber-400/60 underline-offset-2 truncate text-left transition-colors"
+                                  >
+                                    {preset.name}
+                                  </button>
+
+                                  {isActive && (
+                                    <span
+                                      title="กำลังใช้งาน Preset นี้อยู่"
+                                      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-400/20 text-amber-300 shrink-0"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                    </span>
+                                  )}
                                 </div>
-                                <span className="text-xs font-bold text-slate-100 group-hover:text-amber-300 truncate">
-                                  {preset.name}
-                                </span>
-                              </div>
+                              )}
 
                               <div className="mt-1.5 text-xs text-slate-300 truncate font-medium">
                                 {preset.config.rankNumber} {preset.config.topText}{' '}
@@ -462,51 +527,65 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                                 <span aria-hidden="true">·</span>
                                 <span>{preset.updatedAtLabel}</span>
                               </div>
-                            </button>
+                            </div>
 
-                            <div className="flex items-center gap-1 shrink-0">
+                            {/* Contextual Icon Action Bar: visible on hover or when active */}
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className={`flex items-center gap-1 shrink-0 transition-opacity duration-150 ${
+                                isActive || isJustSaved || isRenaming
+                                  ? 'opacity-100'
+                                  : 'opacity-0 group-hover/card:opacity-100 focus-within:opacity-100'
+                              }`}
+                            >
                               <motion.button
-                                whileTap={{ scale: 0.94 }}
+                                whileTap={{ scale: 0.9 }}
                                 type="button"
-                                onClick={() => onApplyPreset(preset)}
-                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
-                                  isActive
-                                    ? 'bg-amber-400 text-slate-950'
-                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                                onClick={() => {
+                                  onUpdatePreset(preset.id);
+                                  setJustSavedPresetId(preset.id);
+                                  window.setTimeout(() => {
+                                    setJustSavedPresetId((prev) =>
+                                      prev === preset.id ? null : prev
+                                    );
+                                  }, 1200);
+                                }}
+                                className={`p-1.5 rounded-lg transition-colors shrink-0 ${
+                                  isJustSaved
+                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                    : 'bg-slate-900/90 hover:bg-slate-700 text-slate-300 hover:text-sky-300'
                                 }`}
+                                title="บันทึกค่าปัจจุบันทับลงใน Preset นี้"
                               >
-                                {isActive ? (
-                                  <span className="flex items-center gap-1">
-                                    <Check className="w-3 h-3" />
-                                    ใช้อยู่
-                                  </span>
+                                {isJustSaved ? (
+                                  <Check className="w-3.5 h-3.5" />
                                 ) : (
-                                  'เลือกใช้'
+                                  <Save className="w-3.5 h-3.5" />
                                 )}
                               </motion.button>
 
-                              {!preset.isBuiltIn && (
-                                <>
-                                  <motion.button
-                                    whileTap={{ scale: 0.94 }}
-                                    type="button"
-                                    onClick={() => onUpdatePreset(preset.id)}
-                                    className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-sky-300 transition-colors whitespace-nowrap shrink-0"
-                                    title="บันทึกค่าปัจจุบันทับ Preset นี้"
-                                  >
-                                    อัปเดตทับ
-                                  </motion.button>
-                                  <motion.button
-                                    whileTap={{ scale: 0.9 }}
-                                    type="button"
-                                    onClick={() => onDeletePreset(preset.id)}
-                                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors shrink-0"
-                                    title="ลบ Preset นี้"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </motion.button>
-                                </>
-                              )}
+                              <motion.button
+                                whileTap={{ scale: 0.9 }}
+                                type="button"
+                                onClick={() => {
+                                  setEditingPresetId(preset.id);
+                                  setEditingNameValue(preset.name);
+                                }}
+                                className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-700 text-slate-300 hover:text-amber-300 transition-colors shrink-0"
+                                title="เปลี่ยนชื่อ Preset"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </motion.button>
+
+                              <motion.button
+                                whileTap={{ scale: 0.9 }}
+                                type="button"
+                                onClick={() => onDeletePreset(preset.id)}
+                                className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors shrink-0"
+                                title="ลบ Preset นี้"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </motion.button>
                             </div>
                           </div>
                         </motion.div>
@@ -810,7 +889,7 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                       3. เสียงเอฟเฟกต์ตบมุกอัตโนมัติ (SFX)
                     </h3>
                   </div>
-                  <label className="inline-flex items-center cursor-pointer">
+                  <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={config.sfx.masterEnabled}

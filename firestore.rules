@@ -122,7 +122,7 @@ service cloud.firestore {
     match /presets/{presetId} {
       allow get: if isSignedIn()
         && isValidId(presetId)
-        && existing().ownerId == request.auth.uid;
+        && (resource == null || existing().ownerId == request.auth.uid);
 
       allow list: if isSignedIn()
         && resource.data.ownerId == request.auth.uid;

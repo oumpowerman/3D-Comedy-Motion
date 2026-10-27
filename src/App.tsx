@@ -108,11 +108,25 @@ export default function App() {
         }
 
         // Subscribe to real-time Custom Presets from Firestore
+        let seededInitialPresets = false;
         unsubPresets = subscribeUserPresets(user.uid, (cloudPresets) => {
-          const builtIns = loadLocalCustomPresets().filter((p) => p.isBuiltIn);
-          const merged = [...cloudPresets, ...builtIns];
-          setPresets(merged);
-          saveLocalCustomPresetsOnly(cloudPresets);
+          if (cloudPresets.length > 0) {
+            setPresets(cloudPresets);
+            saveLocalCustomPresetsOnly(cloudPresets);
+          } else {
+            const localCurrent = loadLocalCustomPresets();
+            setPresets(localCurrent);
+            if (!seededInitialPresets) {
+              seededInitialPresets = true;
+              Promise.all(
+                localCurrent.map((p) =>
+                  savePresetToFirestore(p.id, p.name, p.config, true)
+                )
+              ).catch(() => {
+                // Handled by structured Firestore error handler
+              });
+            }
+          }
         });
       } else {
         setUserEmail(null);
@@ -207,10 +221,11 @@ export default function App() {
 
   const handleUpdatePreset = async (presetId: string) => {
     const target = presets.find((p) => p.id === presetId);
-    if (!target || target.isBuiltIn) return;
+    if (!target) return;
 
     const updatedPreset: SavedCustomPreset = {
       ...target,
+      isBuiltIn: false,
       config: { ...config },
       updatedAtLabel: auth.currentUser ? 'อัปเดตบน Cloud DB' : 'อัปเดตล่าสุด',
     };
@@ -230,12 +245,41 @@ export default function App() {
         setIsSyncingCloud(false);
       }
     }
-    showToast(`อัปเดตการตั้งค่าปัจจุบันทับ Preset "${target.name}" แล้ว`);
+    showToast(`บันทึกการตั้งค่าปัจจุบันทับ Preset "${target.name}" เรียบร้อยแล้ว`);
+  };
+
+  const handleRenamePreset = async (presetId: string, newName: string) => {
+    const target = presets.find((p) => p.id === presetId);
+    const trimmed = newName.trim();
+    if (!target || !trimmed) return;
+
+    const updatedPreset: SavedCustomPreset = {
+      ...target,
+      name: trimmed,
+      isBuiltIn: false,
+      updatedAtLabel: auth.currentUser ? 'อัปเดตบน Cloud DB' : 'แก้ไขชื่อแล้ว',
+    };
+
+    const nextPresets = presets.map((p) =>
+      p.id === presetId ? updatedPreset : p
+    );
+    setPresets(nextPresets);
+    saveLocalCustomPresetsOnly(nextPresets);
+
+    if (auth.currentUser) {
+      setIsSyncingCloud(true);
+      try {
+        await savePresetToFirestore(presetId, trimmed, target.config, false);
+      } finally {
+        setIsSyncingCloud(false);
+      }
+    }
+    showToast(`เปลี่ยนชื่อ Preset เป็น "${trimmed}" เรียบร้อยแล้ว`, 2500);
   };
 
   const handleDeletePreset = async (presetId: string) => {
     const target = presets.find((p) => p.id === presetId);
-    if (!target || target.isBuiltIn) return;
+    if (!target) return;
 
     const nextPresets = presets.filter((p) => p.id !== presetId);
     setPresets(nextPresets);
@@ -252,7 +296,7 @@ export default function App() {
         setIsSyncingCloud(false);
       }
     }
-    showToast(`ลบ Preset "${target.name}" เรียบร้อยแล้ว`, 2800);
+    showToast(`ลบ Preset "${target.name}" เรียบร้อยแล้ว`, 2500);
   };
 
   // Compute exact pixel dimensions based on selected Aspect Ratio & Supersampling
@@ -577,7 +621,7 @@ export default function App() {
     (isRecording && recordingForceTransparentRef.current);
 
   return (
-    <div className="h-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="relative h-screen w-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
       {/* Top Bar Contract: Strictly 3 zones separated by gap-8 */}
       <header className="h-14 flex items-center justify-between gap-8 px-6 bg-slate-900 border-b border-slate-800 shrink-0">
         {/* Zone 1: Single text element wordmark */}
@@ -592,20 +636,21 @@ export default function App() {
           ฮาจัดสตูดิโอ
         </a>
 
-        {/* Zone 2: 4 concise single-line preset navigation links */}
+        {/* Zone 2: Top 4 editable user presets as single-line navigation links */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
-          {PRESET_TEMPLATES.map((preset) => (
+          {presets.slice(0, 4).map((preset) => (
             <button
               key={preset.id}
               type="button"
-              onClick={() => handleSelectTopPreset(preset)}
+              onClick={() => handleApplySavedPreset(preset)}
               className={`hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 ${
-                config.middleText === preset.middleText
+                activePresetId === preset.id ||
+                config.middleText === preset.config.middleText
                   ? 'text-amber-400 font-semibold'
                   : ''
               }`}
             >
-              {preset.label}
+              {preset.name}
             </button>
           ))}
         </nav>
@@ -626,7 +671,7 @@ export default function App() {
       </header>
 
       {/* Main 3-Column Studio Workspace */}
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+      <div className="relative flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
         {/* Left Inspector: 3-Layer Typography, 7-Figure Physics Tuner, EP Badge, Color Themes */}
         {!isFullscreenStage && (
           <LeftInspector config={config} onChange={setConfig} />
@@ -832,6 +877,7 @@ export default function App() {
             onApplyPreset={handleApplySavedPreset}
             onSaveNewPreset={handleSaveNewPreset}
             onUpdatePreset={handleUpdatePreset}
+            onRenamePreset={handleRenamePreset}
             onDeletePreset={handleDeletePreset}
             userEmail={userEmail}
             isSyncingCloud={isSyncingCloud}

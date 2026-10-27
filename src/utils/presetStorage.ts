@@ -228,15 +228,13 @@ export async function loadWorkspaceFromFirestore(
   }
 }
 
-/**
- * Returns default starter presets + locally saved custom presets
- */
-export function loadLocalCustomPresets(): SavedCustomPreset[] {
-  const builtInPresets: SavedCustomPreset[] = PRESET_TEMPLATES.map((t) => ({
-    id: `builtin_${t.id}`,
+export function getInitialStarterPresets(): SavedCustomPreset[] {
+  return PRESET_TEMPLATES.map((t) => ({
+    id: `preset_${t.id}`,
     name: t.label,
-    updatedAtLabel: 'ค่าเริ่มต้นระบบ',
-    isBuiltIn: true,
+    updatedAtLabel: 'พร้อมแก้ไข/บันทึกทับ',
+    isBuiltIn: false,
+    isCloudSynced: false,
     config: normalizeLogoConfig({
       rankNumber: t.rankNumber,
       topText: t.topText,
@@ -247,76 +245,94 @@ export function loadLocalCustomPresets(): SavedCustomPreset[] {
       bannerStyle: t.bannerStyle,
     }),
   }));
+}
 
+/**
+ * Returns user's saved presets from local storage, seeding editable starter presets only on first ever visit
+ */
+export function loadLocalCustomPresets(): SavedCustomPreset[] {
   try {
     const raw = localStorage.getItem(LOCAL_CUSTOM_PRESETS_KEY);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw) as SavedCustomPreset[];
-      if (Array.isArray(parsed)) {
-        return [
-          ...parsed.map((p) => ({
-            ...p,
-            config: normalizeLogoConfig(p.config),
-          })),
-          ...builtInPresets,
-        ];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((p) => ({
+          ...p,
+          isBuiltIn: false,
+          config: normalizeLogoConfig(p.config),
+        }));
       }
     }
   } catch {
     // ignore
   }
-  return builtInPresets;
+  const initial = getInitialStarterPresets();
+  saveLocalCustomPresetsOnly(initial);
+  return initial;
 }
 
 export function saveLocalCustomPresetsOnly(customPresets: SavedCustomPreset[]): void {
   try {
-    const userOnly = customPresets.filter((p) => !p.isBuiltIn);
-    localStorage.setItem(LOCAL_CUSTOM_PRESETS_KEY, JSON.stringify(userOnly));
+    localStorage.setItem(
+      LOCAL_CUSTOM_PRESETS_KEY,
+      JSON.stringify(customPresets.map((p) => ({ ...p, isBuiltIn: false })))
+    );
   } catch {
     // ignore
   }
 }
 
+function getUserScopedPresetDocId(userId: string, presetId: string): string {
+  const cleanUser = userId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32);
+  const cleanPreset = presetId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
+  if (cleanPreset.startsWith(`${cleanUser}_`)) {
+    return cleanPreset;
+  }
+  return `${cleanUser}_${cleanPreset}`;
+}
+
 /**
- * Saves or updates a Custom Preset in Firestore (/presets/{presetId})
+ * Saves or updates a Preset in Firestore (/presets/{presetId}) while strictly respecting create vs update rules
  */
 export async function savePresetToFirestore(
   presetId: string,
   name: string,
   config: LogoConfig,
-  isNew: boolean
+  _isNew?: boolean
 ): Promise<void> {
   const user = auth.currentUser;
   if (!user) return;
 
-  const cleanId = presetId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
-  const path = `presets/${cleanId}`;
+  const scopedId = getUserScopedPresetDocId(user.uid, presetId);
+  const path = `presets/${scopedId}`;
   const safeName = (name.trim() || config.middleText || 'Preset ใหม่').slice(0, 60);
   const basePayload = buildValidatedFirestorePayload(user.uid, config);
 
+  let existsInCloud = false;
   try {
-    if (isNew) {
-      await setDoc(doc(db, 'presets', cleanId), {
+    const existingDoc = await getDoc(doc(db, 'presets', scopedId));
+    existsInCloud = existingDoc.exists();
+
+    if (!existsInCloud) {
+      await setDoc(doc(db, 'presets', scopedId), {
         ...basePayload,
         name: safeName,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
     } else {
-      await setDoc(
-        doc(db, 'presets', cleanId),
-        {
-          ...basePayload,
-          name: safeName,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const existingData = existingDoc.data();
+      await setDoc(doc(db, 'presets', scopedId), {
+        ...basePayload,
+        name: safeName,
+        createdAt: existingData?.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
     }
   } catch (error) {
     handleFirestoreError(
       error,
-      isNew ? OperationType.CREATE : OperationType.UPDATE,
+      existsInCloud ? OperationType.UPDATE : OperationType.CREATE,
       path
     );
   }
@@ -329,10 +345,13 @@ export async function deletePresetFromFirestore(presetId: string): Promise<void>
   const user = auth.currentUser;
   if (!user) return;
 
-  const cleanId = presetId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
-  const path = `presets/${cleanId}`;
+  const scopedId = getUserScopedPresetDocId(user.uid, presetId);
+  const path = `presets/${scopedId}`;
   try {
-    await deleteDoc(doc(db, 'presets', cleanId));
+    const snap = await getDoc(doc(db, 'presets', scopedId));
+    if (snap.exists()) {
+      await deleteDoc(doc(db, 'presets', scopedId));
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
